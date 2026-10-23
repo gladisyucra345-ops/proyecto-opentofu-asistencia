@@ -72,6 +72,7 @@ server {
         proxy_ssl_server_name on;
         proxy_ssl_name ${BACKEND_HOST};
         proxy_ssl_verify on;
+        proxy_ssl_verify_depth 3;
         proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
         proxy_connect_timeout 5s;
         proxy_read_timeout 30s;

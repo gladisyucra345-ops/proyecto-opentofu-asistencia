@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  AsistencIAU - Frontend y Backend en AWS EC2 (Ubuntu 24.04) creados con CloudFormation.
+  Equivale a la infraestructura hecha con OpenTofu en v2/v3.
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: asistencia
+    Description: Nombre del proyecto (se usa en nombres y etiquetas)
+  Ambiente:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, qa, prod]
+    Description: Ambiente a desplegar
+  TipoInstancia:
+    Type: String
+    Default: t3.micro
+    Description: Tamano de las dos VMs
+  LlavePublica:
+    Type: String
+    Description: Contenido de la llave SSH publica (~/.ssh/aws-backend.pub)
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+    Description: Imagen Ubuntu 24.04 oficial (AWS la busca sola)
+
+Resources:
+  # Llave SSH para entrar a los dos servidores
+  LlaveSSH:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${Proyecto}-${Ambiente}-cfn-key"
+      PublicKeyMaterial: !Ref LlavePublica
+      Tags:
+        - Key: Proyecto
+          Value: !Ref Proyecto
+        - Key: Ambiente
+          Value: !Ref Ambiente
+
+  # Firewall del FRONTEND: SSH (22) y Web (80, 443)
+  FrontendSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Frontend - permite SSH, HTTP y HTTPS
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: 0.0.0.0/0, Description: SSH }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS }
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-frontend-sg"
+        - Key: Proyecto
+          Value: !Ref Proyecto
+        - Key: Ambiente
+          Value: !Ref Ambiente
+
+  # Firewall del BACKEND: SSH (22) y Web (80, 443)
+  BackendSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Backend - permite SSH, HTTP y HTTPS
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: 0.0.0.0/0, Description: SSH }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS }
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-backend-sg"
+        - Key: Proyecto
+          Value: !Ref Proyecto
+        - Key: Ambiente
+          Value: !Ref Ambiente
+
+  # Servidor FRONTEND
+  FrontendInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref TipoInstancia
+      KeyName: !Ref LlaveSSH
+      SecurityGroupIds: [!GetAtt FrontendSG.GroupId]
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: 20, VolumeType: gp3, Encrypted: true }
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-frontend"
+        - Key: Proyecto
+          Value: !Ref Proyecto
+        - Key: Ambiente
+          Value: !Ref Ambiente
+
+  # Servidor BACKEND
+  BackendInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref TipoInstancia
+      KeyName: !Ref LlaveSSH
+      SecurityGroupIds: [!GetAtt BackendSG.GroupId]
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: 20, VolumeType: gp3, Encrypted: true }
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-backend"
+        - Key: Proyecto
+          Value: !Ref Proyecto
+        - Key: Ambiente
+          Value: !Ref Ambiente
+
+Outputs:
+  IpFrontend:
+    Description: IP publica del servidor frontend
+    Value: !GetAtt FrontendInstance.PublicIp
+  IpBackend:
+    Description: IP publica del servidor backend
+    Value: !GetAtt BackendInstance.PublicIp
+  SshFrontend:
+    Value: !Sub "ssh -i ~/.ssh/aws-backend ubuntu@${FrontendInstance.PublicIp}"
+  SshBackend:
+    Value: !Sub "ssh -i ~/.ssh/aws-backend ubuntu@${BackendInstance.PublicIp}"
