@@ -1,6 +1,8 @@
 template-file-path: cloudformation/anidados/main-empaquetado.yaml
 parameters:
-  NombreLlave: asistencia-llave
-  Ambiente: dev
-tags:
+  CidrSsh: 0.0.0.0/0
   Proyecto: asistencia
+  Ambiente: dev
+  NombreLlave: asistencia-llave
+  TipoInstancia: t3.micro
+tags: {}
