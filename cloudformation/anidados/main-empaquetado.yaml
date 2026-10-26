@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: "AsistencIAU - Stack PADRE. Llama a los stacks hijos (seguridad y servidores)\
-  \ y les pasa los datos. Version refactorizada con templates anidados.\n"
+Description: "AsistencIAU - Stack PADRE. Llama a los stacks hijos (red, seguridad\
+  \ y servidores) y les pasa los datos. Version refactorizada con templates anidados.\n"
 Parameters:
   Proyecto:
     Type: String
@@ -113,4 +113,10 @@ Outputs:
     Value:
       Fn::GetAtt:
       - Frontend
+      - Outputs.UrlHttps
+  UrlBackend:
+    Description: API del backend (agregado con Git sync)
+    Value:
+      Fn::GetAtt:
+      - Backend
       - Outputs.UrlHttps

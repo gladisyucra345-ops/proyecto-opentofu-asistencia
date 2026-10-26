@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  AsistencIAU - Stack PADRE. Llama a los stacks hijos (seguridad y servidores)
+  AsistencIAU - Stack PADRE. Llama a los stacks hijos (red, seguridad y servidores)
   y les pasa los datos. Version refactorizada con templates anidados.
 
 Parameters:
@@ -81,3 +81,6 @@ Outputs:
   UrlFrontend:
     Description: Direccion web del sistema (despues de instalar)
     Value: !GetAtt Frontend.Outputs.UrlHttps
+  UrlBackend:
+    Description: API del backend (agregado con Git sync)
+    Value: !GetAtt Backend.Outputs.UrlHttps
