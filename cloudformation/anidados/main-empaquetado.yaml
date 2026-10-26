@@ -95,6 +95,25 @@ Resources:
           Fn::GetAtt:
           - Red
           - Outputs.SubredPublicaId
+      
+        
+        # Cambio de prueba: instancia agregada por el companero
+  InstanciaPrueba:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: '{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}'
+      InstanceType: t3.micro
+      SubnetId: !GetAtt Red.Outputs.SubredPublicaId
+      SecurityGroupIds: [!GetAtt Seguridad.Outputs.BackendSGId]
+      MetadataOptions:
+        HttpTokens: required
+      Tags:
+        - Key: Name
+          Value: asistencia-dev-prueba-companero
+        - Key: Proyecto
+          Value: asistencia
+
+          
 Outputs:
   IpBackend:
     Description: IP publica del servidor backend
