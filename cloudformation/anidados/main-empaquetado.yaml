@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "AsistencIAU - Stack PADRE. Llama a los stacks hijos (seguridad y servidores)\
+  \ y les pasa los datos. Version refactorizada con templates anidados.\n"
+Parameters:
+  Proyecto:
+    Type: String
+    Default: asistencia
+  Ambiente:
+    Type: String
+    Default: dev
+    AllowedValues:
+    - dev
+    - qa
+    - prod
+  TipoInstancia:
+    Type: String
+    Default: t3.micro
+  NombreLlave:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Llave SSH ya registrada en EC2 (asistencia-llave)
+  CidrSsh:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: Desde donde se permite SSH (lo ideal es tu IP con /32)
+Resources:
+  Red:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 
+        https://s3.us-east-1.amazonaws.com/asistencia-cfn-templates-234357094562/dffb251af2f5a898c6fb91440df9863f.template
+      Parameters:
+        Proyecto:
+          Ref: Proyecto
+        Ambiente:
+          Ref: Ambiente
+  Seguridad:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 
+        https://s3.us-east-1.amazonaws.com/asistencia-cfn-templates-234357094562/195c426c04b5ba2d2d2b02b674c478e1.template
+      Parameters:
+        Proyecto:
+          Ref: Proyecto
+        Ambiente:
+          Ref: Ambiente
+        CidrSsh:
+          Ref: CidrSsh
+        VpcId:
+          Fn::GetAtt:
+          - Red
+          - Outputs.VpcId
+  Backend:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 
+        https://s3.us-east-1.amazonaws.com/asistencia-cfn-templates-234357094562/e9ea9c0e5f652ca61c3aeaa948f32889.template
+      Parameters:
+        Proyecto:
+          Ref: Proyecto
+        Ambiente:
+          Ref: Ambiente
+        Rol: backend
+        TipoInstancia:
+          Ref: TipoInstancia
+        NombreLlave:
+          Ref: NombreLlave
+        GrupoSeguridadId:
+          Fn::GetAtt:
+          - Seguridad
+          - Outputs.BackendSGId
+        SubredId:
+          Fn::GetAtt:
+          - Red
+          - Outputs.SubredPublicaId
+  Frontend:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 
+        https://s3.us-east-1.amazonaws.com/asistencia-cfn-templates-234357094562/e9ea9c0e5f652ca61c3aeaa948f32889.template
+      Parameters:
+        Proyecto:
+          Ref: Proyecto
+        Ambiente:
+          Ref: Ambiente
+        Rol: frontend
+        TipoInstancia:
+          Ref: TipoInstancia
+        NombreLlave:
+          Ref: NombreLlave
+        GrupoSeguridadId:
+          Fn::GetAtt:
+          - Seguridad
+          - Outputs.FrontendSGId
+        SubredId:
+          Fn::GetAtt:
+          - Red
+          - Outputs.SubredPublicaId
+Outputs:
+  IpBackend:
+    Description: IP publica del servidor backend
+    Value:
+      Fn::GetAtt:
+      - Backend
+      - Outputs.IpPublica
+  IpFrontend:
+    Description: IP publica del servidor frontend
+    Value:
+      Fn::GetAtt:
+      - Frontend
+      - Outputs.IpPublica
+  UrlFrontend:
+    Description: Direccion web del sistema (despues de instalar)
+    Value:
+      Fn::GetAtt:
+      - Frontend
+      - Outputs.UrlHttps

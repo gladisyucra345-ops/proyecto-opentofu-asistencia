@@ -1,0 +1,6 @@
+template-file-path: cloudformation/anidados/main-empaquetado.yaml
+parameters:
+  NombreLlave: asistencia-llave
+  Ambiente: dev
+tags:
+  Proyecto: asistencia

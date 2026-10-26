@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  AsistencIAU - Stack HIJO reutilizable. Crea UN servidor Ubuntu 24.04.
+  El padre lo usa dos veces: Rol=backend y Rol=frontend.
+
+Parameters:
+  Proyecto:
+    Type: String
+  Ambiente:
+    Type: String
+  Rol:
+    Type: String
+    AllowedValues: [frontend, backend]
+  TipoInstancia:
+    Type: String
+    Default: t3.micro
+  NombreLlave:
+    Type: AWS::EC2::KeyPair::KeyName
+  GrupoSeguridadId:
+    Type: AWS::EC2::SecurityGroup::Id
+  SubredId:
+    Type: AWS::EC2::Subnet::Id
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+
+Resources:
+  Servidor:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref TipoInstancia
+      KeyName: !Ref NombreLlave
+      SubnetId: !Ref SubredId
+      SecurityGroupIds: [!Ref GrupoSeguridadId]
+      MetadataOptions:
+        HttpTokens: required          # IMDSv2 obligatorio (hallazgo AWS-0028 de Trivy)
+        HttpEndpoint: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: 20, VolumeType: gp3, Encrypted: true }
+      Tags:
+        - { Key: Name, Value: !Sub "${Proyecto}-${Ambiente}-${Rol}" }
+        - { Key: Proyecto, Value: !Ref Proyecto }
+        - { Key: Ambiente, Value: !Ref Ambiente }
+        - { Key: Rol, Value: !Ref Rol }
+
+Outputs:
+  IpPublica:
+    Value: !GetAtt Servidor.PublicIp
+  UrlHttps:
+    Value: !Join ["", ["https://", !Join ["-", !Split [".", !GetAtt Servidor.PublicIp]], ".sslip.io"]]

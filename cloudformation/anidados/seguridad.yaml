@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AsistencIAU - Stack HIJO. Firewalls (Security Groups) del frontend y del backend.
+
+Parameters:
+  Proyecto:
+    Type: String
+  Ambiente:
+    Type: String
+  CidrSsh:
+    Type: String
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+  FrontendSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Frontend - permite SSH, HTTP y HTTPS
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: !Ref CidrSsh, Description: SSH }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS }
+      Tags:
+        - { Key: Name, Value: !Sub "${Proyecto}-${Ambiente}-frontend-sg" }
+        - { Key: Proyecto, Value: !Ref Proyecto }
+        - { Key: Ambiente, Value: !Ref Ambiente }
+
+  BackendSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Backend - permite SSH, HTTP y HTTPS
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: !Ref CidrSsh, Description: SSH }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS }
+      Tags:
+        - { Key: Name, Value: !Sub "${Proyecto}-${Ambiente}-backend-sg" }
+        - { Key: Proyecto, Value: !Ref Proyecto }
+        - { Key: Ambiente, Value: !Ref Ambiente }
+
+Outputs:
+  FrontendSGId:
+    Value: !GetAtt FrontendSG.GroupId
+  BackendSGId:
+    Value: !GetAtt BackendSG.GroupId

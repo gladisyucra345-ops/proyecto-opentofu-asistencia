@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  AsistencIAU - Stack PADRE. Llama a los stacks hijos (seguridad y servidores)
+  y les pasa los datos. Version refactorizada con templates anidados.
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: asistencia
+  Ambiente:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, qa, prod]
+  TipoInstancia:
+    Type: String
+    Default: t3.micro
+  NombreLlave:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Llave SSH ya registrada en EC2 (asistencia-llave)
+  CidrSsh:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: Desde donde se permite SSH (lo ideal es tu IP con /32)
+
+Resources:
+  # Hijo 1: red propia (VPC + subred publica + internet)
+  Red:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: red.yaml
+      Parameters:
+        Proyecto: !Ref Proyecto
+        Ambiente: !Ref Ambiente
+
+  # Hijo 2: firewalls del frontend y del backend (dentro de la VPC)
+  Seguridad:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: seguridad.yaml
+      Parameters:
+        Proyecto: !Ref Proyecto
+        Ambiente: !Ref Ambiente
+        CidrSsh: !Ref CidrSsh
+        VpcId: !GetAtt Red.Outputs.VpcId
+
+  # Hijo 3: servidor BACKEND (usa el mismo template que el frontend)
+  Backend:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: servidor.yaml
+      Parameters:
+        Proyecto: !Ref Proyecto
+        Ambiente: !Ref Ambiente
+        Rol: backend
+        TipoInstancia: !Ref TipoInstancia
+        NombreLlave: !Ref NombreLlave
+        GrupoSeguridadId: !GetAtt Seguridad.Outputs.BackendSGId
+        SubredId: !GetAtt Red.Outputs.SubredPublicaId
+
+  # Hijo 4: servidor FRONTEND (mismo template, otros parametros)
+  Frontend:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: servidor.yaml
+      Parameters:
+        Proyecto: !Ref Proyecto
+        Ambiente: !Ref Ambiente
+        Rol: frontend
+        TipoInstancia: !Ref TipoInstancia
+        NombreLlave: !Ref NombreLlave
+        GrupoSeguridadId: !GetAtt Seguridad.Outputs.FrontendSGId
+        SubredId: !GetAtt Red.Outputs.SubredPublicaId
+
+Outputs:
+  IpBackend:
+    Description: IP publica del servidor backend
+    Value: !GetAtt Backend.Outputs.IpPublica
+  IpFrontend:
+    Description: IP publica del servidor frontend
+    Value: !GetAtt Frontend.Outputs.IpPublica
+  UrlFrontend:
+    Description: Direccion web del sistema (despues de instalar)
+    Value: !GetAtt Frontend.Outputs.UrlHttps

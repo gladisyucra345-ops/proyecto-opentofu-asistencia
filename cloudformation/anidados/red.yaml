@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AsistencIAU - Stack HIJO. Red propia (VPC, subred publica y salida a internet).
+
+Parameters:
+  Proyecto:
+    Type: String
+  Ambiente:
+    Type: String
+  CidrVpc:
+    Type: String
+    Default: 10.20.0.0/16
+  CidrSubredPublica:
+    Type: String
+    Default: 10.20.1.0/24
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref CidrVpc
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - { Key: Name, Value: !Sub "${Proyecto}-${Ambiente}-vpc" }
+        - { Key: Proyecto, Value: !Ref Proyecto }
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Sub "${Proyecto}-${Ambiente}-igw" }
+
+  ConexionGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  SubredPublica:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref CidrSubredPublica
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${Proyecto}-${Ambiente}-subred-publica" }
+
+  TablaRutas:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${Proyecto}-${Ambiente}-rutas" }
+
+  RutaInternet:
+    Type: AWS::EC2::Route
+    DependsOn: ConexionGateway
+    Properties:
+      RouteTableId: !Ref TablaRutas
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  AsociacionSubred:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubredPublica
+      RouteTableId: !Ref TablaRutas
+
+Outputs:
+  VpcId:
+    Value: !Ref Vpc
+  SubredPublicaId:
+    Value: !Ref SubredPublica
